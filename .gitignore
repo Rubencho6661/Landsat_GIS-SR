@@ -1,0 +1,17 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+P1_ExplorandoDatos_Landsat7-8.R
+P2_CorrAtmosf_Landsat.R
+P2_DN2TOArad_Landsat7.R
+P3_RealceDatos_Landsat.R
+P4_ClasifSuperv_Landsat.R
+P4_ClasifUnsup_Landsat.R
+P4_OperacionDatos_Landsat.R
+readMeta2.R
+Landsat_GIS&SR.Rproj
+/.quarto/
+**/*.quarto_ipynb
+data/
+010060_2013/

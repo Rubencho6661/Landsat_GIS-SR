@@ -1,0 +1,203 @@
+---
+title: "Landsat Analysis"
+format:
+  html:
+    toc: true
+    code-fold: true
+execute:
+  echo: true
+  warning: false
+  error: false
+---
+**Elaborado:** Rubén Basantes
+
+# Landsat satellite images - Data Exploration 
+
+This cell load libraries needed for satellite image processing.
+```{r}
+library(raster)
+library(terra)
+library(sp)
+library(sf)
+library(devtools)
+library(dplyr)
+library(RStoolbox)
+```
+
+Import and print meta-data and bands based on MTL file for extract information.<br>
+*print()* function shows the information of the image.<br>
+*RStoolbox::stackMeta()* function read Landsat data and build a properly calibrated rasterstack from the bands.<br><br>
+*names() function give name to the layers or bands*
+Answer the following questions:<br><br>
+*1. What was the date and time when the Landsat scene was acquired?*<br>
+*2. What is the purpose of temporal resolution in this type of satelite image?*<br>
+*3. Explain the results of names() function*
+```{r}
+metaData <- RStoolbox::readMeta("D:/Landsat_GIS&SR/010060_2013/LE70100602013116EDC00_MTL.txt")
+print(metaData)
+# Stacking refers to join the bands for make a single multilayer file. 
+ls <- RStoolbox::stackMeta(metaData)
+ls
+
+# information of bands
+# gives names to bands
+names(ls) <- c('blue', 'green', 'red', 'NIR', 'SWIR1', 'Thermal_1', 'Thermal_2', 'SWIR2')
+ls
+# provide internal information of the bands
+nlyr(ls)
+crs(ls)
+ncell(ls)
+dim(ls)
+res(ls)
+# plots the satelite images 
+plot(ls)
+```
+
+Import a single RasterLayer objects from Landsat bands: b1=bleu and b2=red.<br><br>
+*4. Identify and print the information for NIR and SWIR bands.*<br>
+*5. What is the spaial resolution of those images?*<br>
+```{r}
+b1 <- raster::raster('D:/Landsat_GIS&SR/010060_2013/LE70100602013116EDC00_B1.TIF')
+b2 <- raster::raster('D:/Landsat_GIS&SR/010060_2013/LE70100602013116EDC00_B2.TIF')
+```
+
+Above we created a RasterStack with 'n' layers.<br>
+The layers represent DN in 8bits of radiometric resolution. <br>
+The reflection intensity can be computed by an at-surface reflexion algorithm, this going to be shows in the next session.<br>
+*6. What is the purpose of radiometric resolution in this type of satelite image?*<br>
+```{r}
+# You can plot individual layers of a RasterStack of a multi-spectral image.
+par(mfrow = c(1,2))
+plot(b1, main = "Blue", col = gray(0:100 / 100))
+plot(b2, main = "Green", col = gray(0:100 / 100))
+```
+ Have a look at the legends of the maps created above. They can range between 0 and 255. Notice the difference in shading and range of legends between the different bands. This is because different surface features reflect the incident solar radiation differently. Each layer represent how much incident solar radiation is reflected for a particular wavelength range. For example, vegetation reflects more energy in NIR than other wavelengths and thus appears brighter. In contrast, water absorbs most of the energy in the NIR wavelength and it appears dark.<br><br>
+We do not gain that much information from these grey-scale plots; they are often combined into a *composite* to create more interesting plots.<br>
+To make a *true (or natural) color* image, that is, something that looks like a normal photograph (vegetation in green,water blue etc), we need bands in the red, green and blue regions.<br>
+The *plotRGB* method can be used to combine them into a single composite. You can also supply additional arguments to plotRGB to improve the visualization (e.g. a linear stretch of the values, using strecth = "lin").<br>
+
+```{r}
+# Cargar bandas
+b1 <- raster('D:/Landsat_GIS&SR/010060_2013/LE70100602013116EDC00_B1.TIF')
+b2 <- raster('D:/Landsat_GIS&SR/010060_2013/LE70100602013116EDC00_B2.TIF')
+b3 <- raster('D:/Landsat_GIS&SR/010060_2013/LE70100602013116EDC00_B3.TIF')
+
+# Crear stack RGB (R=rojo, G=verde, B=azul)
+landsatRGB <- stack(b3, b2, b1)
+
+# Mostrar como color verdadero
+plotRGB(landsatRGB, axes = TRUE, stretch = "hist",
+        main = "Landsat True Color Composite")
+```
+
+*7. Now, using landsatRGB create false color composite map by using band 4 (NIR), 3 (green), and 2 (blue) can be used.*<br>
+```{r}
+# load bands
+
+# Create stack RGB 
+
+# Mostrar como falso color verdadero
+
+```
+
+*subset()* function select only certain bands from the multi-band raster object ls.<br>
+```{r}
+ls_sub <- subset(ls, 1:3) # 1:7 
+ls_sub
+```
+
+*ext()* function provides the coordinated of the spatial domain of the image.<br>
+*8. In this activity, we will reduce the area of our satellite image by selecting only a specific region of interest.*<br>
+*To do this, we will use coordinates extracted from Google Earth and apply them to define the geographic boundaries of the crop. Write down the minimum and maximum of the new coordinates (left, right, bottom, and top limits) of the area. Finally, use the resulting extent to crop your full image.*<br>
+```{r}
+ext(ls_sub)
+# The extension is obtained by Google Earth
+e <- extent(788107, 800382, 31599, 41875)
+# crop landsat by the extent
+ls_sub_crop<- crop(ls_sub, e)
+plot(ls_sub_crop)
+```
+
+Instead of cropping the image using numeric coordinates, in this method we use a vector shapefile that represents the area of interest (AOI). This shapefile typically comes from GIS software (like QGIS, ArcGIS, or Google Earth exports). For doing so, we will use the Area of Interest (AOI) of Pichincha.<br>
+*9. In your own words, explain the purpose of the crs() function in this specific example. Describe why we check the coordinate reference system (CRS) of both the raster and the vector layer before cropping.*<br>
+*Then, add your explanation as comments inside the code, with proper indentation and clear wording.*
+```{r}
+aoi <- vect("D:/Landsat_GIS&SR/data/AOI_Pichincha.shp")  # Check the projection of the vector
+crs(aoi)
+
+crs(ls_sub)
+
+aoi <- project(aoi, crs(ls_sub))
+ls_sub_mask <- mask(ls_sub, aoi)
+plot(ls_sub_mask)
+```
+
+The cell below combines the three bands (blue, green, red) from *ls_sub_crop* variable into a single SpatRaster object. Then use the plotRGB() function to display the image in true color map.<br>
+The plotRGB() function determines which band will be shown as red, green, and blue in the final image*<br>
+- For improving the visualization we apply a simple contrast adjustment *stretch = "lin"*.<br>
+- For improving the visualization we also apply the contrast *stretch = "hist"*.<br><br>
+```{r}
+# Combine bands as RGB SpatRaster
+landsatRGB <- c(ls_sub_crop$blue, ls_sub_crop$green, ls_sub_crop$red)
+
+plotRGB(landsatRGB, r=3, g=2, b=1, stretch="lin")
+title("Landsat True Color Composite", font.main = 2)
+
+plotRGB(landsatRGB, r=3, g=2, b=1, stretch="hist")
+title("Landsat True Color Composite", font.main = 2)
+```
+
+*10. Repeat all the explanaition above but crate a False Color Composite Map.*<br>
+*explain thw differences when using linear improvements and histogram improvements*.
+```{r}
+
+```
+
+Saving results:
+```{r}
+writeRaster(ls_sub_mask, filename="D:/Landsat_GIS&SR/010060_2013/output/mask-landsat.tif", overwrite=TRUE)
+```
+
+The function pairs() creates a scatterplot matrix. This means it compares each selected band against the others to show how strongly their pixel values are related.<br><br>
+Look carefully at the scatterplots produced by these two lines of code. Then answer the following questions:<br>
+
+*11. Do the Blue and Green bands show a strong or weak relationship? Explain what this means about surface reflectance in the visible spectrum.*<br>
+
+*12. In the second scatterplot (Red vs IR bands), identify the cluster of points that likely represents vegetation.*<br>
+
+*13. Based on the scatterplots, which bands seem most useful for distinguishing different land cover types? Justify your answer using patterns you see in the point clusters.*<br>
+```{r}
+pairs(ls_sub_crop[[1:2]], main = "blue versus green")
+pairs(ls[[1:5]], main = "Red versus IR")
+```
+
+For Landsat7 the following wavelengths exist: Blue, Green, Red, Near Infrared (NIR), Shortwave Infrared (SWIR ) 1, Shortwave Infrared (SWIR) 2, Panchromatic, Cirrus, Thermal Infrared (TIRS) 1, Thermal Infrared (TIRS) 2. We wont use the Thermal layers and you will see how to remove those in following sections.<br>
+
+```{r}
+smpl <- vect("D:/Landsat_GIS&SR/data/Samples_pch.shp")# Check the projection of the vector
+
+# Extract raster value at sample point locations
+df <- raster::extract(ls, smpl)
+df
+# remove Thermal bands
+df <- df %>% select(-Thermal_1&-Thermal_2)
+# add the land cover class to the points
+df$Clase <- smpl$Clase
+
+# Convert to long format
+library(tidyr)
+library(ggplot2)
+df_long <- df %>%
+  pivot_longer(cols = c("blue", "green", "red", "NIR", "SWIR1", "SWIR2"),
+               names_to = "Band",
+               values_to = "Reflectance")
+
+ggplot(df_long, aes(x = Band, y = Reflectance, color = Clase, group = Clase)) +
+  stat_summary(fun = mean, geom = "line", linewidth = 1.4) +
+  stat_summary(fun = mean, geom = "point", size = 3) +
+  theme_minimal(base_size = 14) +
+  labs(title = "Mean Spectral Profile per Class",
+       x = "Spectral Band",
+       y = "Reflectance")
+
+```
