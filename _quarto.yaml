@@ -3,11 +3,11 @@ project:
   output-dir: docs
 
 website:
-  title: "Machine Learning"
+  title: "Landsat Analysis"
   navbar:
     left:
       - href: index.qmd
-        text: Modelacion de balance de masa glaciar
+        text: Landsat Analysis
 format:
   html:
     theme: cosmo
